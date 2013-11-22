@@ -104,7 +104,7 @@ header_done(void *data, const char *at, size_t length)
 }
 
 static PyObject *
-http_parser_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
+HTTPParser_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 {
     char *data; 
     if(!PyArg_ParseTuple(args, "s", &data)) {
@@ -140,12 +140,36 @@ http_parser_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 }
 
 
+static PyObject*
+HTTPParser_execute(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+	PyObject *request;
+    char *data;
+    int start;
+	static char* kwlist[] = {"request", "data", "start", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Osd:keywords",
+					 kwlist, &request, &data, &start))
+		return NULL;
+
+    printf("%s", data);
+
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
+static PyMethodDef http_parser_methods[] = {
+    {"execute",(PyCFunction)HTTPParser_execute, METH_KEYWORDS,	NULL},
+    {NULL}  /* Sentinel */
+};
+
+
 PyTypeObject PyHTTPParser_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "http_parser",                       /* tp_name */
     sizeof(HTTPParser),            /* tp_basicsize */
     0,                              /* tp_itemsize */
-    0, //(destructor)revgen_dealloc,     /* tp_dealloc */
+    0, //(destructor)HTTPParser_dealloc,     /* tp_dealloc */
     0,                              /* tp_print */
     0,                              /* tp_getattr */
     0,                              /* tp_setattr */
@@ -168,7 +192,7 @@ PyTypeObject PyHTTPParser_Type = {
     0,                              /* tp_weaklistoffset */
     PyObject_SelfIter,              /* tp_iter */
     0,                              /* tp_iternext */
-    0,                              /* tp_methods */
+    http_parser_methods,            /* tp_methods */
     0,                              /* tp_members */
     0,                              /* tp_getset */
     0,                              /* tp_base */
@@ -178,12 +202,10 @@ PyTypeObject PyHTTPParser_Type = {
     0,                              /* tp_dictoffset */
     0,                              /* tp_init */
     PyType_GenericAlloc,            /* tp_alloc */
-    http_parser_new                 /* tp_new */
+    HTTPParser_new                  /* tp_new */
 };
 
-static PyMethodDef http_parser_methods[] = {
-    {NULL}  /* Sentinel */
-};
+
 
 #ifndef PyMODINIT_FUNC  /* declarations for DLL import/export */
 #define PyMODINIT_FUNC void
@@ -197,7 +219,7 @@ inithttp_parser(void)
         return;
 
     module = Py_InitModule3("http_parser", http_parser_methods,
-                            "Example module that creates an extension type.");
+                            "http_parser module that uses ragel parser.");
 
     Py_INCREF((PyObject *)&PyHTTPParser_Type);
     PyModule_AddObject(module, "HTTPParser", (PyObject *)&PyHTTPParser_Type);
