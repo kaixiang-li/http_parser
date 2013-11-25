@@ -68,7 +68,6 @@ request_method(void *data, const char *at, size_t length)
     PyObject* val = Py_None;
 
     val = Py_BuildValue("s", at);
-    //PyObject_Print(val, stdout, 0);
     PyDict_SetItemString(req, global_request_method, val);
 }
 
@@ -162,22 +161,22 @@ HTTPParser_execute(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     HTTPParser *parser = (HTTPParser*)self;
     http_parser *http = parser->http;
-	PyObject* request;
+
+	PyObject* req_hash = NULL;
     char *data;
     int start;
 	static char* kwlist[] = {"request", "data", "start", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Osd:execute",
-					 kwlist, &request, &data, &start))
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Osi:execute",
+					 kwlist, &req_hash, &data, &start))
 		return NULL;
 
-    PyObject_Print(request, stdout, 0);
+    //PyObject_Print(request, stdout, 0);
     size_t dlen = strlen(data);
-    //printf("%s", data);
-    printf("%d", start);
-    //http->data = (void *)req_hash;
+    http->data = (void *)req_hash;
+    
     // execute
-    http_parser_execute(parser->http, data, dlen, 0);
+    http_parser_execute(http, data, dlen, 0);
 
     return (PyObject *)self;
 }
