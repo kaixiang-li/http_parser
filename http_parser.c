@@ -60,7 +60,7 @@ http_field(void *data, const char *field,  size_t flen, const char *value, size_
 
     strncpy(buff, field, flen);
     // upcase the field name
-    for(i = 0; buff[i] != NULL; i++) {
+    for(i = 0; i < flen; i++) {
         buff[i] = toupper(buff[i]);
     }
     
@@ -110,7 +110,7 @@ fragment(void *data, const char *at, size_t length)
     PyObject* val = Py_None;
 
     val = Py_BuildValue("s", buff);
-    PyDict_SetItemString(req, global_request_uri, val);
+    PyDict_SetItemString(req, global_fragment, val);
 }
 
 static void 
@@ -125,7 +125,7 @@ request_path(void *data, const char *at, size_t length)
 
     val = Py_BuildValue("s", buff);
     PyDict_SetItemString(req, global_request_path, val);
-
+    PyDict_SetItemString(req, global_path_info, val);
 }
 
 static void 
@@ -156,7 +156,61 @@ http_version(void *data, const char *at, size_t length)
 static void
 header_done(void *data, const char *at, size_t length)
 {
-    printf("done.\n");
+    PyObject* req = (PyObject*)data;
+
+    // server header field
+    PyObject* content_length = Py_None;
+    PyObject* content_type = Py_None;
+    PyObject* http_host = Py_None;
+    PyObject* body = Py_None;
+
+    content_length = PyDict_GetItemString(req, global_http_content_length);
+    if(content_length != NULL) {
+        PyDict_SetItemString(req, global_content_length, content_length);
+        PyDict_DelItemString(req, global_http_content_length);
+    }
+
+    content_type = PyDict_GetItemString(req, global_http_content_type);
+    if(content_type != NULL) {
+        PyDict_SetItemString(req, global_content_type, content_type);
+        PyDict_DelItemString(req, global_http_content_type);
+    }
+    
+    PyDict_SetItemString(req, global_gateway_interface, 
+            Py_BuildValue("s", global_gateway_interface_value));
+    if((http_host = PyDict_GetItemString(req, global_http_host)) != NULL) {
+        PyDict_SetItemString(req, global_server_name, http_host);
+        PyDict_SetItemString(req, global_server_port, 
+            Py_BuildValue("s", global_port_80));
+    }
+
+    //body
+    if(length > 0)  {
+        body = PyDict_GetItemString(req, global_http_body);
+        PyDict_SetItemString(req, global_http_body, body);
+        // wait to do..
+    }
+
+
+    if(PyDict_GetItemString(req, global_query_string) == NULL) {
+        PyDict_SetItemString(req, global_query_string, 
+            Py_BuildValue("s", global_empty));
+    }
+
+
+    if(PyDict_GetItemString(req, global_path_info) == NULL) {
+        PyDict_SetItemString(req, global_path_info, 
+            Py_BuildValue("s", global_empty));
+    } 
+  
+    
+    // constants
+    PyDict_SetItemString(req, global_server_protocol, 
+            Py_BuildValue("s", global_server_protocol_value));
+    PyDict_SetItemString(req, global_url_scheme, 
+            Py_BuildValue("s", global_url_scheme_value));
+    PyDict_SetItemString(req, global_script_name, 
+            Py_BuildValue("s", global_empty));
 }
 
 static PyObject *
