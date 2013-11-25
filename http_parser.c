@@ -5,6 +5,33 @@
 #include "parser.h"
 #include <ctype.h>
 
+//static char* global_empty = "";
+//static char* global_http_prefix = "HTTP_";
+static char* global_request_method = "REQUEST_METHOD";
+//static char* global_request_uri = "REQUEST_URI";
+//static char* global_fragment = "FRAGMENT";
+//static char* global_query_string = "QUERY_STRING";
+//static char* global_http_version = "HTTP_VERSION";
+//static char* global_content_length = "CONTENT_LENGTH";
+//static char* global_http_content_length = "HTTP_CONTENT_LENGTH";
+//static char* global_request_path = "REQUEST_PATH";
+//static char* global_content_type = "CONTENT_TYPE";
+//static char* global_http_content_type = "HTTP_CONTENT_TYPE";
+//static char* global_gateway_interface = "GATEWAY_INTERFACE";
+//static char* global_gateway_interface_value = "CGI/1.2";
+//static char* global_server_name = "SERVER_NAME";
+//static char* global_server_port = "SERVER_PORT";
+//static char* global_server_protocol = "SERVER_PROTOCOL";
+//static char* global_server_protocol_value = "HTTP/1.1";
+//static char* global_http_host = "HTTP_HOST";
+//static char* global_port_80 = "80";
+//static char* global_http_body = "wsgi.input";
+//static char* global_url_scheme = "wsgi.url_scheme";
+//static char* global_url_scheme_value = "http";
+//static char* global_script_name = "SCRIPT_NAME";
+//static char* global_path_info = "PATH_INFO";
+
+
 /* HTTPParser - http parser instance.
  * callback methods:
  *  http_field
@@ -21,8 +48,7 @@ typedef struct {
     PyObject_HEAD
     http_parser *callbacks;
 } HTTPParser;
-
-
+static HTTPParser *parser;
 #define BUFF_LEN 4096
 
 static void 
@@ -33,17 +59,17 @@ http_field(void *data, const char *field,  size_t flen, const char *value, size_
     strncpy(buff, field, flen);
     strcat(buff, ": ");
     strncat(buff, value, vlen);
-    printf("HEADER: \"%s\"\n", buff);
+    printf("HTTP_FIELD: \"%s\"\n", buff);
 }
 
 static void 
 request_method(void *data, const char *at, size_t length)
 {
-    char buff[BUFF_LEN] = {0};
+    PyObject* req = (PyObject*)data;
+    PyObject* val = Py_None;
 
-    strncpy(buff, at, length);
-
-    printf("METHOD: \"%s\"\n", buff);
+    val = Py_BuildValue("s", at);
+    PyDict_SetItemString(req, global_request_method, val);
 }
 
 static void 
@@ -106,14 +132,8 @@ header_done(void *data, const char *at, size_t length)
 static PyObject *
 HTTPParser_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 {
-    char *data; 
-    if(!PyArg_ParseTuple(args, "s", &data)) {
-        return NULL; 
-    }
-    
-    size_t dlen = strlen(data);
     // Create a new HTTPParser and initialize its state.
-    HTTPParser *parser = (HTTPParser *)type->tp_alloc(type, 0);
+    parser = (HTTPParser *)type->tp_alloc(type, 0);
     if(!parser) 
         return NULL;
 
@@ -133,9 +153,6 @@ HTTPParser_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
     callbacks->header_done = header_done;
     http_parser_init(callbacks);
 
-    // execute
-    http_parser_execute(callbacks, data, dlen, 0);
-
     return (PyObject *)parser;
 }
 
@@ -152,10 +169,12 @@ HTTPParser_execute(PyObject *self, PyObject *args, PyObject *kwargs)
 					 kwlist, &request, &data, &start))
 		return NULL;
 
-    printf("%s", data);
+    size_t dlen = strlen(data);
 
-	Py_INCREF(Py_None);
-	return Py_None;
+    // execute
+    http_parser_execute(parser->callbacks, data, dlen, 0);
+
+    return (PyObject *)parser;
 }
 
 static PyMethodDef http_parser_methods[] = {
@@ -214,6 +233,8 @@ PyMODINIT_FUNC
 inithttp_parser(void)
 {
     PyObject* module; //PyModule_Create(&http_parsermodule);
+
+    
 
     if (PyType_Ready(&PyHTTPParser_Type) < 0)
         return;
