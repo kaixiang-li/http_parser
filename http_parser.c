@@ -46,9 +46,8 @@ static char* global_request_method = "REQUEST_METHOD";
 
 typedef struct {
     PyObject_HEAD
-    http_parser *callbacks;
+    http_parser *http;
 } HTTPParser;
-static HTTPParser *parser;
 #define BUFF_LEN 4096
 
 static void 
@@ -69,6 +68,7 @@ request_method(void *data, const char *at, size_t length)
     PyObject* val = Py_None;
 
     val = Py_BuildValue("s", at);
+    //PyObject_Print(val, stdout, 0);
     PyDict_SetItemString(req, global_request_method, val);
 }
 
@@ -133,25 +133,25 @@ static PyObject *
 HTTPParser_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 {
     // Create a new HTTPParser and initialize its state.
-    parser = (HTTPParser *)type->tp_alloc(type, 0);
+    HTTPParser *parser = (HTTPParser *)type->tp_alloc(type, 0);;
     if(!parser) 
         return NULL;
 
-    // initialize the parser
-    http_parser *callbacks = (http_parser *) PyMem_Malloc(sizeof(http_parser));
-    if(!callbacks)
+   // initialize the parser
+    http_parser *http = (http_parser *) PyMem_Malloc(sizeof(http_parser));
+    if(!http)
         return NULL;
 
-    parser->callbacks = callbacks;
-    callbacks->http_field = http_field;
-    callbacks->request_method = request_method;
-    callbacks->request_uri = request_uri;
-    callbacks->fragment = fragment;
-    callbacks->request_path = request_path;
-    callbacks->query_string = query_string;
-    callbacks->http_version = http_version;
-    callbacks->header_done = header_done;
-    http_parser_init(callbacks);
+    parser->http = http;
+    http->http_field = http_field;
+    http->request_method = request_method;
+    http->request_uri = request_uri;
+    http->fragment = fragment;
+    http->request_path = request_path;
+    http->query_string = query_string;
+    http->http_version = http_version;
+    http->header_done = header_done;
+    http_parser_init(http);
 
     return (PyObject *)parser;
 }
@@ -160,21 +160,26 @@ HTTPParser_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 static PyObject*
 HTTPParser_execute(PyObject *self, PyObject *args, PyObject *kwargs)
 {
-	PyObject *request;
+    HTTPParser *parser = (HTTPParser*)self;
+    http_parser *http = parser->http;
+	PyObject* request;
     char *data;
     int start;
 	static char* kwlist[] = {"request", "data", "start", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Osd:keywords",
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Osd:execute",
 					 kwlist, &request, &data, &start))
 		return NULL;
 
+    PyObject_Print(request, stdout, 0);
     size_t dlen = strlen(data);
-
+    //printf("%s", data);
+    printf("%d", start);
+    //http->data = (void *)req_hash;
     // execute
-    http_parser_execute(parser->callbacks, data, dlen, 0);
+    http_parser_execute(parser->http, data, dlen, 0);
 
-    return (PyObject *)parser;
+    return (PyObject *)self;
 }
 
 static PyMethodDef http_parser_methods[] = {
