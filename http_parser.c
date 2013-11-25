@@ -5,31 +5,31 @@
 #include "parser.h"
 #include <ctype.h>
 
-//static char* global_empty = "";
-//static char* global_http_prefix = "HTTP_";
+static char* global_empty = "";
+static char* global_http_prefix = "HTTP_";
 static char* global_request_method = "REQUEST_METHOD";
-//static char* global_request_uri = "REQUEST_URI";
-//static char* global_fragment = "FRAGMENT";
-//static char* global_query_string = "QUERY_STRING";
-//static char* global_http_version = "HTTP_VERSION";
-//static char* global_content_length = "CONTENT_LENGTH";
-//static char* global_http_content_length = "HTTP_CONTENT_LENGTH";
-//static char* global_request_path = "REQUEST_PATH";
-//static char* global_content_type = "CONTENT_TYPE";
-//static char* global_http_content_type = "HTTP_CONTENT_TYPE";
-//static char* global_gateway_interface = "GATEWAY_INTERFACE";
-//static char* global_gateway_interface_value = "CGI/1.2";
-//static char* global_server_name = "SERVER_NAME";
-//static char* global_server_port = "SERVER_PORT";
-//static char* global_server_protocol = "SERVER_PROTOCOL";
-//static char* global_server_protocol_value = "HTTP/1.1";
-//static char* global_http_host = "HTTP_HOST";
-//static char* global_port_80 = "80";
-//static char* global_http_body = "wsgi.input";
-//static char* global_url_scheme = "wsgi.url_scheme";
-//static char* global_url_scheme_value = "http";
-//static char* global_script_name = "SCRIPT_NAME";
-//static char* global_path_info = "PATH_INFO";
+static char* global_request_uri = "REQUEST_URI";
+static char* global_fragment = "FRAGMENT";
+static char* global_query_string = "QUERY_STRING";
+static char* global_http_version = "HTTP_VERSION";
+static char* global_content_length = "CONTENT_LENGTH";
+static char* global_http_content_length = "HTTP_CONTENT_LENGTH";
+static char* global_request_path = "REQUEST_PATH";
+static char* global_content_type = "CONTENT_TYPE";
+static char* global_http_content_type = "HTTP_CONTENT_TYPE";
+static char* global_gateway_interface = "GATEWAY_INTERFACE";
+static char* global_gateway_interface_value = "CGI/1.2";
+static char* global_server_name = "SERVER_NAME";
+static char* global_server_port = "SERVER_PORT";
+static char* global_server_protocol = "SERVER_PROTOCOL";
+static char* global_server_protocol_value = "HTTP/1.1";
+static char* global_http_host = "HTTP_HOST";
+static char* global_port_80 = "80";
+static char* global_http_body = "wsgi.input";
+static char* global_url_scheme = "wsgi.url_scheme";
+static char* global_url_scheme_value = "http";
+static char* global_script_name = "SCRIPT_NAME";
+static char* global_path_info = "PATH_INFO";
 
 
 /* HTTPParser - http parser instance.
@@ -53,21 +53,39 @@ typedef struct {
 static void 
 http_field(void *data, const char *field,  size_t flen, const char *value, size_t vlen)
 {
+    int i = 0;
     char buff[BUFF_LEN] = {0};
+    char field_buff[BUFF_LEN] = {0};
+    char value_buff[BUFF_LEN] = {0};
 
     strncpy(buff, field, flen);
-    strcat(buff, ": ");
-    strncat(buff, value, vlen);
-    printf("HTTP_FIELD: \"%s\"\n", buff);
+    // upcase the field name
+    for(i = 0; buff[i] != NULL; i++) {
+        buff[i] = toupper(buff[i]);
+    }
+    
+    // complete field name
+    strcpy(field_buff, global_http_prefix);
+    strncat(field_buff, buff, flen);
+
+    strncpy(value_buff, value, vlen);
+    PyObject* req = (PyObject*)data;
+    PyObject* val = Py_None;
+
+    val = Py_BuildValue("s", value_buff);
+    PyDict_SetItemString(req, field_buff, val);
 }
 
 static void 
 request_method(void *data, const char *at, size_t length)
 {
+    char buff[BUFF_LEN] = {0};
+    strncpy(buff, at, length);
+
     PyObject* req = (PyObject*)data;
     PyObject* val = Py_None;
 
-    val = Py_BuildValue("s", at);
+    val = Py_BuildValue("s", buff);
     PyDict_SetItemString(req, global_request_method, val);
 }
 
@@ -75,21 +93,24 @@ static void
 request_uri(void *data, const char *at, size_t length)
 {
     char buff[BUFF_LEN] = {0};
-
     strncpy(buff, at, length);
+    PyObject* req = (PyObject*)data;
+    PyObject* val = Py_None;
 
-    printf("URI: \"%s\"\n", buff);
-
+    val = Py_BuildValue("s", buff);
+    PyDict_SetItemString(req, global_request_uri, val);
 }
 
 static void 
 fragment(void *data, const char *at, size_t length)
 {
     char buff[BUFF_LEN] = {0};
-
     strncpy(buff, at, length);
+    PyObject* req = (PyObject*)data;
+    PyObject* val = Py_None;
 
-    printf("FRAGMENT: \"%s\"\n", buff);
+    val = Py_BuildValue("s", buff);
+    PyDict_SetItemString(req, global_request_uri, val);
 }
 
 static void 
@@ -99,27 +120,37 @@ request_path(void *data, const char *at, size_t length)
 
     strncpy(buff, at, length);
 
-    printf("PATH: \"%s\"\n", buff);
+    PyObject* req = (PyObject*)data;
+    PyObject* val = Py_None;
+
+    val = Py_BuildValue("s", buff);
+    PyDict_SetItemString(req, global_request_path, val);
+
 }
 
 static void 
 query_string(void *data, const char *at, size_t length)
 {
     char buff[BUFF_LEN] = {0};
-
     strncpy(buff, at, length);
+    PyObject* req = (PyObject*)data;
+    PyObject* val = Py_None;
 
-    printf("QUERY: \"%s\"\n", buff);
+    val = Py_BuildValue("s", buff);
+    PyDict_SetItemString(req, global_query_string, val);
+
 }
 
 static void 
 http_version(void *data, const char *at, size_t length)
 {
     char buff[BUFF_LEN] = {0};
-
     strncpy(buff, at, length);
+    PyObject* req = (PyObject*)data;
+    PyObject* val = Py_None;
 
-    printf("VERSION: \"%s\"\n", buff);
+    val = Py_BuildValue("s", buff);
+    PyDict_SetItemString(req, global_http_version, val);
 }
 
 static void
